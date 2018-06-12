@@ -220,21 +220,21 @@ class zip_tree {
         const key_type &key) {
       if (!x) return std::make_pair(nullptr, nullptr);
       else if (key < x->m_key) {
-        if (x->m_left && x->m_left->m_key < key) {
-          std::pair<node_type*, node_type*> p = unzip(x->m_left->m_right, key);
+        node_type *xleft = x->m_left;
+        if (xleft && xleft->m_key < key) {
+          std::pair<node_type*, node_type*> p = unzip(xleft->m_right, key);
           x->m_left->m_right = p.first;
-          node_type *first = x->m_left;
           x->m_left = p.second;
-          return std::make_pair(first, x);
-        } else return std::make_pair(unzip(x->m_left, key).first, x);
+          return std::make_pair(xleft, x);
+        } else return std::make_pair(unzip(xleft, key).first, x);
       } else {
-        if (x->m_right && key < x->m_right->m_key) {
-          std::pair<node_type*, node_type*> p = unzip(x->m_right->m_left, key);
+        node_type *xright = x->m_right;
+        if (xright && key < xright->m_key) {
+          std::pair<node_type*, node_type*> p = unzip(xright->m_left, key);
           x->m_right->m_left = p.second;
-          node_type *second = x->m_right;
           x->m_right = p.first;
-          return std::make_pair(x, second);
-        } else return std::make_pair(x, unzip(x->m_right, key).second);
+          return std::make_pair(x, xright);
+        } else return std::make_pair(x, unzip(xright, key).second);
       }
     }
 
