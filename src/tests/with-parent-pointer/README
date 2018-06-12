@@ -1,0 +1,13 @@
+To test the tree type
+
+  $ make
+
+and then
+
+  $ ./test
+
+It checks the correctness of the code.
+I tried running it under valgrind and
+it does not report any leaks.
+
+- Dominik
