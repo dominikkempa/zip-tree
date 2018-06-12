@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "zip_tree.hpp"
+#include "utils.hpp"
 
 
 int main() {
@@ -22,7 +23,7 @@ int main() {
     static const std::uint64_t n_tests = 100000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
-        fprintf(stderr, "tests: %lu\r", i + 1);
+        fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
 
       zip_tree_type *tree = new zip_tree_type();
       std::map<key_type, value_type> s;
@@ -31,13 +32,11 @@ int main() {
         if (op == 0) {
           std::uint64_t key = utils::random_int<key_type>(0, 10);
           std::string value = utils::random_string_hash();
-          // std::cout << "insert(" << key << ", " << value << "\n";
           tree->insert(key, value);
           if (s.find(key) == s.end())
             s[key] = value;
         } else if (op == 1) {
           std::uint64_t key = utils::random_int<key_type>(0, 10);
-          // std::cout << "erase(" << key << ")\n";
           tree->erase(key);
           if (s.find(key) != s.end())
             s.erase(key);
@@ -45,7 +44,6 @@ int main() {
           std::uint64_t key = utils::random_int<key_type>(0, 10);
           std::map<key_type, value_type>::iterator it =
             s.find(key);
-          // std::cout << "search(" << key << ")\n";
           if (it != s.end()) {
             std::pair<bool, value_type> p = tree->search(key);
             if (p.first == false) {
@@ -64,8 +62,7 @@ int main() {
           }
         }
 
-        // tree->print();
-        tree->self_check();
+        tree->check_correctness();
       }
 
       delete tree;
@@ -73,13 +70,13 @@ int main() {
     fprintf(stderr, "\n");
   }
 
-  // Same check, but even more paranoid. We
-  // simulate all operations manually using std::vector.
+  // Same check, but even more paranoid: we simulate
+  // all operations manually using std::vector.
   {
     static const std::uint64_t n_tests = 100000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
-        fprintf(stderr, "tests: %lu\r", i + 1);
+        fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
 
       zip_tree_type *tree = new zip_tree_type();
       typedef std::pair<key_type, value_type> pair_type;
@@ -150,7 +147,7 @@ int main() {
           }
         }
 
-        tree->self_check();
+        tree->check_correctness();
       }
 
       delete tree;
