@@ -1,9 +1,9 @@
 #ifndef __ZIP_TREE_HPP_INCLUDED
 #define __ZIP_TREE_HPP_INCLUDED
 
+#include <cstdlib>
 #include <cstdint>
 #include <iostream>
-#include <vector>
 
 
 //=============================================================================
@@ -47,9 +47,8 @@ class node {
 };
 
 //=============================================================================
-// This class implements a basic subset of functionality of std::set.
-// It works with any key_type as long as objects of key_type can be compared
-// using "<" operator.
+// Simple implementation of zip-tree. It works with any key_type as
+// long as objects of key_type can be compared using "<" operator.
 //=============================================================================
 template<typename key_type, typename value_type>
 class zip_tree {
@@ -82,40 +81,32 @@ class zip_tree {
     }
 
     //=========================================================================
-    // Return a bool value set to true if the insertion took place and
-    // false otherwise (i.e., when the key was already in the tree).
+    // Insert a node with a given (key, value) pair into the tree.
+    // Return true if the insertion took place and false otherwise (the
+    // key was already in the tree). This is an optimized variant of the
+    // insertion which does only a single downward pass in the tree.
     //=========================================================================
-    bool insert(
-        const key_type &key,
-        const value_type &value) {
-
-      std::pair<node_type*, node_type**> p = find(key);
-      if (p.first)
-        return false;
-
+    bool insert(const key_type &key, const value_type &value) {
       std::uint8_t rank = random_rank();
       node_type *cur = m_root, **edgeptr = 0;
       while (cur && cur->m_rank > rank) {
         if (key < cur->m_key) {
           edgeptr = &(cur->m_left);
           cur = cur->m_left;
-        } else {
+        } else if (cur->m_key < key) {
           edgeptr = &(cur->m_right);
           cur = cur->m_right;
-        }
+        } else return false;
       }
-
       while (cur && cur->m_rank == rank && cur->m_key < key) {
         edgeptr = &(cur->m_right);
         cur = cur->m_right;
       }
-
-      std::pair<node_type*, node_type*> pp = unzip(cur, key);
-      node_type *newnode = new node_type(key, value, rank, pp.first, pp.second);
-      if (!edgeptr)
-        m_root = newnode;
+      std::pair<node_type*, node_type*> p = unzip(cur, key);
+      if (cur && !p.first && !p.second) return false;
+      node_type *newnode = new node_type(key, value, rank, p.first, p.second);
+      if (!edgeptr) m_root = newnode;
       else *edgeptr = newnode;
-
       return true;
     }
 
@@ -123,13 +114,11 @@ class zip_tree {
     // Delete the node with a given key from the tree.
     // Return true if the deletion took place.
     //=========================================================================
-    bool erase(
-        const key_type &key) {
+    bool erase(const key_type &key) {
       std::pair<node_type*, node_type**> p = find(key);
       if (!p.first) return false;
       else {
-        if (!p.second)
-          m_root = zip(p.first->m_left, p.first->m_right);
+        if (!p.second) m_root = zip(p.first->m_left, p.first->m_right);
         else *(p.second) = zip(p.first->m_left, p.first->m_right);
         delete p.first;
         return true;
@@ -149,8 +138,7 @@ class zip_tree {
     //=========================================================================
     std::pair<bool, value_type> search(const key_type &key) const {
       std::pair<node_type*, node_type**> p = find(key);
-      if (!p.first)
-        return std::make_pair(false, value_type());
+      if (!p.first) return std::make_pair(false, value_type());
       else return std::make_pair(true, p.first->m_value);
     }
 
@@ -161,19 +149,7 @@ class zip_tree {
     //=========================================================================
     void check_correctness() const {
       if (m_root) {
-
-        // Check keys.
-        std::vector<const node_type*> nodes;
-        collect_nodes(m_root, nodes);
-        for (std::uint64_t i = 0; i + 1 < nodes.size(); ++i) {
-          if (!(nodes[i]->m_key < nodes[i + 1]->m_key)) {
-            fprintf(stderr, "\nError: check-keys failed!\n");
-            print();
-            std::exit(EXIT_FAILURE);
-          }
-        }
-
-        // Check ranks.
+        check_keys(m_root);
         check_ranks(m_root);
       }
     }
@@ -184,9 +160,7 @@ class zip_tree {
     // Zip-in two subtrees and return the root of the resulting tree.
     // We assume that any key in `x' is smaller than any key in `y'.
     //=========================================================================
-    node_type* zip(
-        node_type *x,
-        node_type *y) {
+    node_type* zip(node_type *x, node_type *y) {
       if (!x) return y;
       if (!y) return x;
       if (x->m_rank >= y->m_rank) {
@@ -212,8 +186,8 @@ class zip_tree {
 
     //=========================================================================
     // Split the subtree rooted in `x' into two subtrees with key smaller
-    // and larger than the given `key'. It assumes that key does not occur
-    // in the subtree rooted in `x'. Note: There is room for optimization.
+    // and larger than the given `key'. If x != 0 and `key' occurs in subtree
+    // `x', function returns a pair (nullptr, nullptr) and tree is unchanged.
     //=========================================================================
     std::pair<node_type*, node_type*> unzip(
         node_type *x,
@@ -223,19 +197,29 @@ class zip_tree {
         node_type *xleft = x->m_left;
         if (xleft && xleft->m_key < key) {
           std::pair<node_type*, node_type*> p = unzip(xleft->m_right, key);
-          x->m_left->m_right = p.first;
+          if (xleft->m_right && !p.first && !p.second) return p;
+          xleft->m_right = p.first;
           x->m_left = p.second;
           return std::make_pair(xleft, x);
-        } else return std::make_pair(unzip(xleft, key).first, x);
-      } else {
+        } else {
+          std::pair<node_type*, node_type*> p = unzip(xleft, key);
+          if (xleft && !p.first && !p.second) return p;
+          else return std::make_pair(p.first, x);
+        }
+      } else if (x->m_key < key) {
         node_type *xright = x->m_right;
         if (xright && key < xright->m_key) {
           std::pair<node_type*, node_type*> p = unzip(xright->m_left, key);
-          x->m_right->m_left = p.second;
+          if (xright->m_left && !p.first && !p.second) return p;
+          xright->m_left = p.second;
           x->m_right = p.first;
           return std::make_pair(x, xright);
-        } else return std::make_pair(x, unzip(xright, key).second);
-      }
+        } else {
+          std::pair<node_type*, node_type*> p = unzip(xright, key);
+          if (xright && !p.first && !p.second) return p;
+          else return std::make_pair(x, p.second);
+        }
+      } else return std::make_pair(nullptr, nullptr);
     }
 
     //=========================================================================
@@ -262,8 +246,7 @@ class zip_tree {
     //=========================================================================
     inline std::uint8_t random_rank() const {
       std::uint64_t rank = 0;
-      while (rand() % 2)
-        ++rank;
+      while (rand() % 2) ++rank;
       return rank;
     }
 
@@ -279,26 +262,76 @@ class zip_tree {
     }
 
     //=========================================================================
-    // Collect, left-to-right, all nodes from subtree rooted in `x'.
+    // Print the subtree rooted in `x'.
     //=========================================================================
-    void collect_nodes(
-        const node_type *x,
-        std::vector<const node_type*> &v) const {
-      if (x->m_left)
-        collect_nodes(x->m_left, v);
-      v.push_back(x);
-      if (x->m_right)
-        collect_nodes(x->m_right, v);
+    void print(const node_type *x, std::uint32_t indent) const {
+      if (x) {
+        if (x->m_right) print(x->m_right, indent + 4);
+        if (indent != 0)
+          for (std::uint64_t j = 0; j < indent; ++j)
+            std::cout << ' ';
+        std::cout << "(" << x->m_key << ", rank = "
+          << (std::uint32_t)x->m_rank << ")\n ";
+        if (x->m_left) print(x->m_left, indent + 4);
+      }
     }
 
     //=========================================================================
-    // Self-check of a subtree rooted in `x'.
+    // Check if all the keys in the subtree `x' have correctly oredered keys.
+    //=========================================================================
+    void check_keys(const node_type *x) const {
+      if (x->m_left) check_keys_left(x->m_left, x->m_key);
+      if (x->m_right) check_keys_right(x->m_right, x->m_key);
+    }
+
+    //=========================================================================
+    // Check if all the keys in the subtree rooted in `x' are < key.
+    //=========================================================================
+    void check_keys_left(const node_type *x, const key_type &key) const {
+      if (!(x->m_key < key)) {
+        std::cerr << "\nError: check_keys failed!\n";
+        std::exit(EXIT_FAILURE);
+      }
+      if (x->m_left) check_keys_left(x->m_left, x->m_key);
+      if (x->m_right) check_keys(x->m_right, x->m_key, key);
+    }
+
+    //=========================================================================
+    // Check if all the keys in the subtree rooted in `x' are > key.
+    //=========================================================================
+    void check_keys_right(const node_type *x, const key_type &key) const {
+      if (!(key < x->m_key)) {
+        std::cerr << "\nError: check_keys failed!\n";
+        std::exit(EXIT_FAILURE);
+      }
+      if (x->m_left) check_keys(x->m_left, key, x->m_key);
+      if (x->m_right) check_keys_right(x->m_right, x->m_key);
+    }
+
+    //=========================================================================
+    // Check if all the keys in the subtree rooted in `x' are (strictly)
+    // between `key_left' and `key_right'.
+    //=========================================================================
+    void check_keys(
+        const node_type *x,
+        const key_type &key_left,
+        const key_type &key_right) const {
+      if (!(key_left < x->m_key) || !(x->m_key < key_right)) {
+        std::cerr << "\nError: check_keys failed!\n";
+        std::exit(EXIT_FAILURE);
+      }
+      if (x->m_left) check_keys(x->m_left, key_left, x->m_key);
+      if (x->m_right) check_keys(x->m_right, x->m_key, key_right);
+    }
+
+    //=========================================================================
+    // Check correctness of ranks in a subtree rooted in `x'.
     //=========================================================================
     void check_ranks(const node_type *x) const {
       if (x->m_left) {
         check_ranks(x->m_left);
         if (x->m_left->m_rank >= x->m_rank) {
-          fprintf(stderr, "\nError: check-ranks failed!\n");
+          std::cerr << "\nError: check-ranks failed!\n";
           print();
           std::exit(EXIT_FAILURE);
         }
@@ -307,25 +340,10 @@ class zip_tree {
       if (x->m_right) {
         check_ranks(x->m_right);
         if (x->m_right->m_rank > x->m_rank) {
-          fprintf(stderr, "\nError: check-ranks failed!\n");
+          std::cerr << "\nError: check-ranks failed!\n";
           print();
           std::exit(EXIT_FAILURE);
         }
-      }
-    }
-
-    //=========================================================================
-    // Print the subtree rooted in `p'.
-    //=========================================================================
-    void print(node_type* p, std::uint32_t indent) const {
-      if (p) {
-        if (p->m_right) print(p->m_right, indent + 4);
-        if (indent != 0)
-          for (std::uint64_t j = 0; j < indent; ++j)
-            std::cout << ' ';
-        std::cout << "(" << p->m_key << ", rank = "
-                  << (std::uint32_t)p->m_rank << ")\n ";
-        if (p->m_left) print(p->m_left, indent + 4);
       }
     }
 };

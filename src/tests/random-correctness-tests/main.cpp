@@ -3,12 +3,27 @@
 #include <cstdint>
 #include <algorithm>
 #include <map>
+#include <sstream>
 #include <ctime>
 #include <unistd.h>
 
 #include "zip_tree.hpp"
-#include "utils.hpp"
 
+
+std::uint64_t random_int(std::uint64_t p, std::uint64_t r) {
+  std::uint64_t r30 = RAND_MAX * rand() + rand();
+  std::uint64_t s30 = RAND_MAX * rand() + rand();
+  std::uint64_t t4  = rand() & 0xf;
+  std::uint64_t r64 = (r30 << 34) + (s30 << 4) + t4;
+  return p + r64 % (r - p + 1);
+}
+
+std::string random_string() {
+  uint64_t hash = rand() * RAND_MAX + rand();
+  std::stringstream ss;
+  ss << hash;
+  return ss.str();
+}
 
 int main() {
   srand(time(0) + getpid());
@@ -20,7 +35,7 @@ int main() {
   // Check random sequences operations
   // and compare the result to std::map.
   {
-    static const std::uint64_t n_tests = 100000;
+    static const std::uint64_t n_tests = 500000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
@@ -28,20 +43,40 @@ int main() {
       zip_tree_type *tree = new zip_tree_type();
       std::map<key_type, value_type> s;
       for (std::uint64_t j = 0; j < 100; ++j) {
-        std::uint64_t op = utils::random_int<std::uint64_t>(0, 2);
+        std::uint64_t op = random_int(0, 2);
         if (op == 0) {
-          std::uint64_t key = utils::random_int<key_type>(0, 10);
-          std::string value = utils::random_string_hash();
-          tree->insert(key, value);
-          if (s.find(key) == s.end())
+          std::uint64_t key = random_int(0, 10);
+          std::string value = random_string();
+          bool res = tree->insert(key, value);
+          if (s.find(key) == s.end()) {
             s[key] = value;
+            if (res == false) {
+              fprintf(stderr, "\nError: wrong insertion result\n");
+              std::exit(EXIT_FAILURE);
+            }
+          } else {
+            if (res == true) {
+              fprintf(stderr, "\nError: wrong insertion result\n");
+              std::exit(EXIT_FAILURE);
+            }
+          }
         } else if (op == 1) {
-          std::uint64_t key = utils::random_int<key_type>(0, 10);
-          tree->erase(key);
-          if (s.find(key) != s.end())
+          std::uint64_t key = random_int(0, 10);
+          bool res = tree->erase(key);
+          if (s.find(key) != s.end()) {
             s.erase(key);
+            if (res == false) {
+              fprintf(stderr, "\nError: wrong erase result\n");
+              std::exit(EXIT_FAILURE);
+            }
+          } else {
+            if (res == true) {
+              fprintf(stderr, "\nError: wrong erase result\n");
+              std::exit(EXIT_FAILURE);
+            }
+          }
         } else {
-          std::uint64_t key = utils::random_int<key_type>(0, 10);
+          std::uint64_t key = random_int(0, 10);
           std::map<key_type, value_type>::iterator it =
             s.find(key);
           if (it != s.end()) {
@@ -73,7 +108,7 @@ int main() {
   // Same check, but even more paranoid: we simulate
   // all operations manually using std::vector.
   {
-    static const std::uint64_t n_tests = 100000;
+    static const std::uint64_t n_tests = 500000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
@@ -82,11 +117,11 @@ int main() {
       typedef std::pair<key_type, value_type> pair_type;
       std::vector<pair_type> v;
       for (std::uint64_t j = 0; j < 100; ++j) {
-        std::uint64_t op = utils::random_int<std::uint64_t>(0, 2);
+        std::uint64_t op = random_int(0, 2);
         if (op == 0) {
-          std::uint64_t key = utils::random_int<key_type>(0, 10);
-          std::string value = utils::random_string_hash();
-          tree->insert(key, value);
+          std::uint64_t key = random_int(0, 10);
+          std::string value = random_string();
+          bool res = tree->insert(key, value);
 
           {
             bool found = false;
@@ -96,12 +131,22 @@ int main() {
                 break;
               }
             }
-            if (found == false)
+            if (found == false) {
               v.push_back(std::make_pair(key, value));
+              if (res == false) {
+                fprintf(stderr, "\nError: wrong insertion result\n");
+                std::exit(EXIT_FAILURE);
+              }
+            } else {
+              if (res == true) {
+                fprintf(stderr, "\nError: wront insertion result\n");
+                std::exit(EXIT_FAILURE);
+              }
+            }
           }
         } else if (op == 1) {
-          std::uint64_t key = utils::random_int<key_type>(0, 10);
-          tree->erase(key);
+          std::uint64_t key = random_int(0, 10);
+          bool res = tree->erase(key);
 
           {
             bool found = false;
@@ -113,11 +158,21 @@ int main() {
                 break;
               }
             }
-            if (found == true)
+            if (found == true) {
               v.erase(v.begin() + idx);
+              if (res == false) {
+                fprintf(stderr, "\nError: wrong erase result\n");
+                std::exit(EXIT_FAILURE);
+              }
+            } else {
+              if (res == true) {
+                fprintf(stderr, "\nError: wrong erase result\n");
+                std::exit(EXIT_FAILURE);
+              }
+            }
           }
         } else {
-          std::uint64_t key = utils::random_int<key_type>(0, 10);
+          std::uint64_t key = random_int(0, 10);
 
           bool found = false;
           std::uint64_t idx = 0;

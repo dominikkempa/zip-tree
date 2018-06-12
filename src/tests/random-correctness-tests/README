@@ -1,0 +1,7 @@
+To compile the testing program just type 
+
+  $ make
+
+and then
+
+  $ ./test
