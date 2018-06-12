@@ -223,9 +223,8 @@ class zip_tree {
     }
 
     //=========================================================================
-    // Search for a node with a given `key'.
-    // Return a pointer to the node and the address of the pointer of which
-    // it is the target.
+    // Search for a node with a given `key'. Return a pointer to the node and
+    // the address of the pointer of which it is the target.
     //=========================================================================
     std::pair<node_type*, node_type**> find(const key_type &key) const {
       node_type *cur = m_root, **edgeptr = 0; 
@@ -277,7 +276,7 @@ class zip_tree {
     }
 
     //=========================================================================
-    // Check if all the keys in the subtree `x' have correctly oredered keys.
+    // Check if all nodes in the subtree `x' have correctly oredered keys.
     //=========================================================================
     void check_keys(const node_type *x) const {
       if (x->m_left) check_keys_left(x->m_left, x->m_key);
@@ -285,7 +284,7 @@ class zip_tree {
     }
 
     //=========================================================================
-    // Check if all the keys in the subtree rooted in `x' are < key.
+    // Check if all keys in the subtree rooted in `x' are < key.
     //=========================================================================
     void check_keys_left(const node_type *x, const key_type &key) const {
       if (!(x->m_key < key)) {
