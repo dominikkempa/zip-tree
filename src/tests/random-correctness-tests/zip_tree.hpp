@@ -229,16 +229,16 @@ class zip_tree {
     //=========================================================================
     std::pair<node_type*, node_type**> find(const key_type &key) const {
       node_type *cur = m_root, **edgeptr = 0; 
-      while (cur && (key < cur->m_key || cur->m_key < key)) {
+      while (cur) {
         if (key < cur->m_key) {
           edgeptr = &(cur->m_left);
           cur = cur->m_left;
-        } else {
+        } else if (cur->m_key < key) {
           edgeptr = &(cur->m_right);
           cur = cur->m_right;
-        }
+        } else return std::make_pair(cur, edgeptr);
       }
-      return std::make_pair(cur, edgeptr);
+      return std::make_pair(nullptr, nullptr);
     }
 
     //=========================================================================
