@@ -52,16 +52,21 @@ class node {
 // It works with any KeyType as long as objects of KeyType can be compared
 // using "<" operator.
 //=============================================================================
-template<typename KeyType, typename ValueType>
+template<typename key_type, typename value_type>
 class zip_tree {
-  public:
+  private:
 
     //=========================================================================
-    // Basic typedefs.
+    // Define common aliases.
     //=========================================================================
-    typedef KeyType key_type;
-    typedef ValueType value_type;
     typedef node<key_type, value_type> node_type;
+
+    //=========================================================================
+    // Pointer to the root of the tree.
+    //=========================================================================
+    node_type *m_root;
+
+  public:
 
     //=========================================================================
     // Constructor.
@@ -75,17 +80,6 @@ class zip_tree {
     //=========================================================================
     ~zip_tree() {
       delete_subtree(m_root);
-    }
-
-    //=========================================================================
-    // Delete subtree rooted in `x'.
-    //=========================================================================
-    void delete_subtree(node_type *x) {
-      if (x != nullptr) {
-        delete_subtree(x->m_left);
-        delete_subtree(x->m_right);
-        delete x;
-      }
     }
 
     //=========================================================================
@@ -161,11 +155,76 @@ class zip_tree {
       else return std::make_pair(true, p.first->m_value);
     }
 
+    //=========================================================================
+    // Check if a tree is a correct zip-tree, i.e., if the order of keys
+    // is correct, and whether rank[left[v]] < rank[v] and
+    // rank[right[v]] <= rank[v] conditions hold for every node.
+    //=========================================================================
+    void self_check() const {
+      if (m_root != nullptr) {
+
+        // Check keys.
+        std::vector<const node_type*> nodes;
+        collect_nodes(m_root, nodes);
+        for (std::uint64_t i = 0; i + 1 < nodes.size(); ++i) {
+          if (!(nodes[i]->m_key < nodes[i + 1]->m_key)) {
+            fprintf(stderr, "\nError: check-keys failed!\n");
+            print();
+            std::exit(EXIT_FAILURE);
+          }
+        }
+
+        // Check ranks.
+        check_ranks(m_root);
+      }
+    }
+
   private:
 
     //=========================================================================
+    // Collect, left-to-right, all nodes from subtree rooted in `x'.
+    //=========================================================================
+    void collect_nodes(
+        const node_type *x,
+        std::vector<const node_type*> &v) const {
+      if (x->m_left != nullptr)
+        collect_nodes(x->m_left, v);
+      v.push_back(x);
+      if (x->m_right != nullptr)
+        collect_nodes(x->m_right, v);
+    }
+
+    //=========================================================================
+    // Self-check of a subtree rooted in `x'.
+    //=========================================================================
+    void check_ranks(const node_type *x) const {
+      if (x->m_left != nullptr) {
+        check_ranks(x->m_left);
+        if (x->m_left->m_rank >= x->m_rank) {
+          fprintf(stderr, "\nError: check-ranks failed!\n");
+          print();
+          std::exit(EXIT_FAILURE);
+        }
+      }
+
+      if (x->m_right != nullptr) {
+        check_ranks(x->m_right);
+        if (x->m_right->m_rank > x->m_rank) {
+          fprintf(stderr, "\nError: check-ranks failed!\n");
+          print();
+          std::exit(EXIT_FAILURE);
+        }
+      }
+    }
+
+#if 0
+    //=========================================================================
     // Zip-in two subtrees and return the root of the resulting tree.
     // We assume that any key in `x' is smaller than any key in `y'.
+    //
+    // This version is incorrect. The problem can be seen on the tree 
+    // with (key, rank) pairs: (3, 0), (5, 1), (2, 1), (7, 5), (10, 1)
+    // or on this one: (1, 0), (4, 1), (0, 1), (5, 3), (6, 0), (7, 0).
     //=========================================================================
     node_type* zip(
         node_type *x,
@@ -186,6 +245,42 @@ class zip_tree {
         }
       }
     }
+#else
+    //=========================================================================
+    // Zip-in two subtrees and return the root of the resulting tree.
+    // We assume that any key in `x' is smaller than any key in `y'.
+    // Note: can this function be written more nicely using recursion.
+    //=========================================================================
+    node_type* zip(
+        node_type *x,
+        node_type *y) {
+      if (x == nullptr) return y;
+      else if (y == nullptr) return x;
+      else {
+        if (x->m_rank >= y->m_rank) {
+          node_type *temp = x->m_right, *partemp = x;
+          while (temp != nullptr &&
+              temp->m_rank >= y->m_rank && temp->m_key < y->m_key) {
+            partemp = temp;
+            temp = temp->m_right;
+          }
+          partemp->m_right = y;
+          y->m_left = zip(temp, y->m_left);
+          return x;
+        } else {
+          if (y->m_left != nullptr && y->m_left->m_rank >= x->m_rank) {
+            y->m_left = zip(x, y->m_left);
+            return y;
+          } else {
+            node_type *temp = y->m_left;
+            y->m_left = x;
+            x->m_right = zip(x->m_right, temp);
+            return y;
+          }
+        }
+      }
+    }
+#endif
 
     //=========================================================================
     // Split the subtree rooted in `x' into two subtrees with key smaller
@@ -250,19 +345,25 @@ class zip_tree {
     //=========================================================================
     void print(node_type* p, std::uint32_t indent) const {
       if (p != nullptr) {
+        if (p->m_right != nullptr) print(p->m_right, indent + 4);
         if (indent != 0)
           std::cout << std::setw(indent) << ' ';
         std::cout << "(" << p->m_key << ", rank = "
                   << (std::uint32_t)p->m_rank << ")\n ";
         if (p->m_left != nullptr) print(p->m_left, indent + 4);
-        if (p->m_right != nullptr) print(p->m_right, indent + 4);
       }
     }
 
     //=========================================================================
-    // Pointer to the root of the tree.
+    // Delete subtree rooted in `x'.
     //=========================================================================
-    node_type *m_root;
+    void delete_subtree(node_type *x) {
+      if (x != nullptr) {
+        delete_subtree(x->m_left);
+        delete_subtree(x->m_right);
+        delete x;
+      }
+    }
 };
 
 #endif  // __ZIP_TREE_HPP_INCLUDED
