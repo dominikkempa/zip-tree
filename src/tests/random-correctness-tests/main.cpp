@@ -32,10 +32,10 @@ int main() {
   typedef std::string value_type;
   typedef zip_tree<key_type, value_type> zip_tree_type;
 
-  // Check random sequences operations
+  // Check random sequences of operations
   // and compare the result to std::map.
   {
-    static const std::uint64_t n_tests = 500000;
+    static const std::uint64_t n_tests = 100000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
@@ -77,8 +77,7 @@ int main() {
           }
         } else {
           std::uint64_t key = random_int(0, 10);
-          std::map<key_type, value_type>::iterator it =
-            s.find(key);
+          std::map<key_type, value_type>::iterator it = s.find(key);
           if (it != s.end()) {
             std::pair<bool, value_type> p = tree->search(key);
             if (p.first == false) {
@@ -108,7 +107,7 @@ int main() {
   // Same check, but even more paranoid: we simulate
   // all operations manually using std::vector.
   {
-    static const std::uint64_t n_tests = 500000;
+    static const std::uint64_t n_tests = 100000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
@@ -122,58 +121,28 @@ int main() {
           std::uint64_t key = random_int(0, 10);
           std::string value = random_string();
           bool res = tree->insert(key, value);
-
-          {
-            bool found = false;
-            for (std::uint64_t t = 0; t < v.size(); ++t) {
-              if (v[t].first == key) {
-                found = true;
-                break;
-              }
+          bool found = false;
+          for (std::uint64_t t = 0; t < v.size(); ++t) {
+            if (v[t].first == key) {
+              found = true;
+              break;
             }
-            if (found == false) {
-              v.push_back(std::make_pair(key, value));
-              if (res == false) {
-                fprintf(stderr, "\nError: wrong insertion result\n");
-                std::exit(EXIT_FAILURE);
-              }
-            } else {
-              if (res == true) {
-                fprintf(stderr, "\nError: wront insertion result\n");
-                std::exit(EXIT_FAILURE);
-              }
+          }
+          if (found == false) {
+            v.push_back(std::make_pair(key, value));
+            if (res == false) {
+              fprintf(stderr, "\nError: wrong insertion result\n");
+              std::exit(EXIT_FAILURE);
+            }
+          } else {
+            if (res == true) {
+              fprintf(stderr, "\nError: wront insertion result\n");
+              std::exit(EXIT_FAILURE);
             }
           }
         } else if (op == 1) {
           std::uint64_t key = random_int(0, 10);
           bool res = tree->erase(key);
-
-          {
-            bool found = false;
-            std::uint64_t idx = 0;
-            for (std::uint64_t t = 0; t < v.size(); ++t) {
-              if (v[t].first == key) {
-                found = true;
-                idx = t;
-                break;
-              }
-            }
-            if (found == true) {
-              v.erase(v.begin() + idx);
-              if (res == false) {
-                fprintf(stderr, "\nError: wrong erase result\n");
-                std::exit(EXIT_FAILURE);
-              }
-            } else {
-              if (res == true) {
-                fprintf(stderr, "\nError: wrong erase result\n");
-                std::exit(EXIT_FAILURE);
-              }
-            }
-          }
-        } else {
-          std::uint64_t key = random_int(0, 10);
-
           bool found = false;
           std::uint64_t idx = 0;
           for (std::uint64_t t = 0; t < v.size(); ++t) {
@@ -183,7 +152,29 @@ int main() {
               break;
             }
           }
-
+          if (found == true) {
+            v.erase(v.begin() + idx);
+            if (res == false) {
+              fprintf(stderr, "\nError: wrong erase result\n");
+              std::exit(EXIT_FAILURE);
+            }
+          } else {
+            if (res == true) {
+              fprintf(stderr, "\nError: wrong erase result\n");
+              std::exit(EXIT_FAILURE);
+            }
+          }
+        } else {
+          std::uint64_t key = random_int(0, 10);
+          bool found = false;
+          std::uint64_t idx = 0;
+          for (std::uint64_t t = 0; t < v.size(); ++t) {
+            if (v[t].first == key) {
+              found = true;
+              idx = t;
+              break;
+            }
+          }
           if (found == true) {
             std::pair<bool, value_type> p = tree->search(key);
             if (p.first == false) {
