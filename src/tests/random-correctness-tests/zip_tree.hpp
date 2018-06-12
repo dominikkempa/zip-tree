@@ -185,9 +185,10 @@ class zip_tree {
     }
 
     //=========================================================================
-    // Split the subtree rooted in `x' into two subtrees with key smaller
-    // and larger than the given `key'. If x != 0 and `key' occurs in subtree
-    // `x', function returns a pair (nullptr, nullptr) and tree is unchanged.
+    // Split the subtree rooted in `x' into two subtrees with keys smaller
+    // and larger than the given `key'. If `key' occurs in subtree `x' then
+    // function returns a pair (nullptr, nullptr) and tree remains unchanged.
+    // NOTE: Is a more elegant/shorter implementation of this function possible?
     //=========================================================================
     std::pair<node_type*, node_type*> unzip(
         node_type *x,
@@ -266,17 +267,14 @@ class zip_tree {
     void print(const node_type *x, std::uint32_t indent) const {
       if (x) {
         if (x->m_right) print(x->m_right, indent + 4);
-        if (indent != 0)
-          for (std::uint64_t j = 0; j < indent; ++j)
-            std::cout << ' ';
-        std::cout << "(" << x->m_key << ", rank = "
-          << (std::uint32_t)x->m_rank << ")\n ";
+        for (std::uint64_t j = 0; j < indent; ++j) std::cout << ' ';
+        std::cout << "(" << x->m_key << ", rank = " << (int)x->m_rank << ")\n ";
         if (x->m_left) print(x->m_left, indent + 4);
       }
     }
 
     //=========================================================================
-    // Check if all nodes in the subtree `x' have correctly oredered keys.
+    // Check if all nodes in the subtree `x' have correctly ordered keys.
     //=========================================================================
     void check_keys(const node_type *x) const {
       if (x->m_left) check_keys_left(x->m_left, x->m_key);
@@ -288,7 +286,7 @@ class zip_tree {
     //=========================================================================
     void check_keys_left(const node_type *x, const key_type &key) const {
       if (!(x->m_key < key)) {
-        std::cerr << "\nError: check_keys failed!\n";
+        std::cerr << "\nError: check_keys_left failed!\n";
         std::exit(EXIT_FAILURE);
       }
       if (x->m_left) check_keys_left(x->m_left, x->m_key);
@@ -300,7 +298,7 @@ class zip_tree {
     //=========================================================================
     void check_keys_right(const node_type *x, const key_type &key) const {
       if (!(key < x->m_key)) {
-        std::cerr << "\nError: check_keys failed!\n";
+        std::cerr << "\nError: check_keys_right_ failed!\n";
         std::exit(EXIT_FAILURE);
       }
       if (x->m_left) check_keys(x->m_left, key, x->m_key);
@@ -330,7 +328,7 @@ class zip_tree {
       if (x->m_left) {
         check_ranks(x->m_left);
         if (x->m_left->m_rank >= x->m_rank) {
-          std::cerr << "\nError: check-ranks failed!\n";
+          std::cerr << "\nError: check_ranks failed!\n";
           print();
           std::exit(EXIT_FAILURE);
         }
@@ -339,7 +337,7 @@ class zip_tree {
       if (x->m_right) {
         check_ranks(x->m_right);
         if (x->m_right->m_rank > x->m_rank) {
-          std::cerr << "\nError: check-ranks failed!\n";
+          std::cerr << "\nError: check_ranks failed!\n";
           print();
           std::exit(EXIT_FAILURE);
         }
