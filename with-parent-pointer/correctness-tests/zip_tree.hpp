@@ -21,7 +21,7 @@ class node {
   public:
 
     //=========================================================================
-    // Key, value, rank, and pointers to children.
+    // Key, value, rank, and pointers.
     //=========================================================================
     key_type m_key;
     value_type m_value;
@@ -68,71 +68,6 @@ class zip_tree {
     node_type *m_root;
 
   public:
-
-    //=========================================================================
-    // Very simple non-const iterator.
-    //=========================================================================
-    class iterator {
-      private:
-        node_type *m_ptr;
-
-      public:
-        iterator(node_type *x)
-          : m_ptr(x) {}
-
-        iterator()
-          : m_ptr(nullptr) {}
-
-        const key_type& key() const {
-          return m_ptr->m_key;
-        }
-
-        value_type& value() {
-          return m_ptr->m_value;
-        }
-
-        inline iterator& operator++() {
-          if (!m_ptr) {
-            std::cerr << "\nError: ++ on NULL iterator\n";
-            std::exit(EXIT_FAILURE);
-          }
-          m_ptr = next(m_ptr);
-          return *this;
-        }
-
-        inline iterator& operator--() {
-          if (!m_ptr)
-            m_ptr = max_node(m_root);
-          else m_ptr = prev(m_ptr);
-          return *this;
-        }
-
-        inline iterator operator++(int) {
-          if (!m_ptr) {
-            std::cerr << "\nError: ++ on NULL iterator\n";
-            std::exit(EXIT_FAILURE);
-          }
-          iterator ret = *this;
-          m_ptr = next(m_ptr);
-          return ret;
-        }
-
-        inline iterator operator--(int) {
-          iterator ret = *this;
-          if (!m_ptr)
-            m_ptr = max_node(m_root);
-          else m_ptr = prev(m_ptr);
-          return ret;
-        }
-
-        bool operator == (const iterator &it) const {
-          return m_ptr == it.m_ptr;
-        }
-
-        bool operator != (const iterator &it) const {
-          return m_ptr != it.m_ptr;
-        }
-    };
 
     //=========================================================================
     // Constructor.
@@ -240,6 +175,73 @@ class zip_tree {
         }
       }
     }
+
+  public:
+
+    //=========================================================================
+    // Very simple non-const iterator.
+    //=========================================================================
+    class iterator {
+      private:
+        node_type *m_ptr;
+
+      public:
+        iterator(node_type *x)
+          : m_ptr(x) {}
+
+        iterator()
+          : m_ptr(nullptr) {}
+
+        const key_type& key() const {
+          return m_ptr->m_key;
+        }
+
+        value_type& value() {
+          return m_ptr->m_value;
+        }
+
+        inline iterator& operator++() {
+          if (!m_ptr) {
+            std::cerr << "\nError: ++ on NULL iterator\n";
+            std::exit(EXIT_FAILURE);
+          }
+          m_ptr = next(m_ptr);
+          return *this;
+        }
+
+        inline iterator& operator--() {
+          if (!m_ptr)
+            m_ptr = max_node(m_root);
+          else m_ptr = prev(m_ptr);
+          return *this;
+        }
+
+        inline iterator operator++(int) {
+          if (!m_ptr) {
+            std::cerr << "\nError: ++ on NULL iterator\n";
+            std::exit(EXIT_FAILURE);
+          }
+          iterator ret = *this;
+          m_ptr = next(m_ptr);
+          return ret;
+        }
+
+        inline iterator operator--(int) {
+          iterator ret = *this;
+          if (!m_ptr)
+            m_ptr = max_node(m_root);
+          else m_ptr = prev(m_ptr);
+          return ret;
+        }
+
+        bool operator == (const iterator &it) const {
+          return m_ptr == it.m_ptr;
+        }
+
+        bool operator != (const iterator &it) const {
+          return m_ptr != it.m_ptr;
+        }
+    };
 
     iterator begin() {
       return iterator(min_node(m_root));
