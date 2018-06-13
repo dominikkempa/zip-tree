@@ -1,0 +1,30 @@
+To run performance tests type
+
+  $ make
+
+and then
+
+  $ ./test
+
+The resuls are very promising. On my computer
+the insertion into zip-trees (in random order)
+is only about 50% slower than for red-back
+trees. Interestingly, insertion in sorted order
+is usually slightly faster for zip-trees.
+
+As for searching and deleting, on my machine
+zip-trees are only about 25% slower than red
+black trees.
+
+Perhaps further engineering of zip-trees can
+yield some improvements, e.g., eliminating
+recursion in the insertion. I studied a bit
+the reb-black implementation in the C++ standard
+library and found that most functions are
+re-written into iterative versions, e.g.,
+see the _Rb_tree_insert_and_rebalance function in
+
+https://github.com/gcc-mirror/gcc/blob
+/master/libstdc++-v3/src/c++98/tree.cc
+
+- Dominik

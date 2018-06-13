@@ -355,9 +355,16 @@ class zip_tree {
     //=========================================================================
     // Return random rank.
     //=========================================================================
-    inline std::uint8_t random_rank() const {
-      std::uint64_t rank = 0;
-      while (rand() % 2) ++rank;
+    std::uint8_t random_rank() const {
+
+      // Note the static below. This variable
+      // will keep its value between calls, which
+      // reduces the number of calls to rand().
+      static std::uint32_t random_bits = 0;
+      while (!random_bits)
+        random_bits = rand();
+      std::uint8_t rank = __builtin_ctz(random_bits);
+      random_bits >>= (rank + 1);
       return rank;
     }
 

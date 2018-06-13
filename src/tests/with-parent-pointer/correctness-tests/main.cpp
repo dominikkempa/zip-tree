@@ -253,37 +253,4 @@ int main() {
 
     fprintf(stderr, "\n");
   }
-
-  {
-    typedef std::uint64_t key_type;
-    typedef std::string value_type;
-    typedef zip_tree<key_type, value_type> zip_tree_type;
-
-    zip_tree_type *tree = new zip_tree_type();
-    tree->insert(5, "five");
-    tree->insert(6, "fix");
-    tree->insert(2, "two");
-    tree->insert(10, "ten");
-    tree->erase(6);
-    tree->insert(7, "seven");
-    tree->erase(5);
-    tree->insert(9, "nine");
-
-    std::cout << "tree:\n";
-    for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it) {
-      std::cout << "\t" << "key = " << it.key() << ", value = "
-        << it.value() << "\n";
-    }
-
-    for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it)
-      it.value() = "newvalue";
-
-    std::cout << "tree:\n";
-    for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it) {
-      std::cout << "\t" << "key = " << it.key() << ", value = "
-        << it.value() << "\n";
-    }
-
-    delete tree;
-  }
 }
