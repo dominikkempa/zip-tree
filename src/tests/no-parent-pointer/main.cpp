@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <map>
 #include <sstream>
+#include <limits>
+#include <vector>
 #include <ctime>
 #include <unistd.h>
 
@@ -19,7 +21,7 @@ std::uint64_t random_int(std::uint64_t p, std::uint64_t r) {
 }
 
 std::string random_string() {
-  uint64_t hash = rand() * RAND_MAX + rand();
+  uint64_t hash = random_int(0, std::numeric_limits<std::uint64_t>::max() - 1);
   std::stringstream ss;
   ss << hash;
   return ss.str();
@@ -28,14 +30,14 @@ std::string random_string() {
 int main() {
   srand(time(0) + getpid());
 
-  typedef std::uint64_t key_type;
-  typedef std::string value_type;
-  typedef zip_tree<key_type, value_type> zip_tree_type;
-
   // Check random sequences of operations
   // and compare the result to std::map.
   {
-    static const std::uint64_t n_tests = 100000;
+    typedef std::uint64_t key_type;
+    typedef std::string value_type;
+    typedef zip_tree<key_type, value_type> zip_tree_type;
+
+    static const std::uint64_t n_tests = 200000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
@@ -107,7 +109,11 @@ int main() {
   // Same check, but even more paranoid: we simulate
   // all operations manually using std::vector.
   {
-    static const std::uint64_t n_tests = 100000;
+    typedef std::uint64_t key_type;
+    typedef std::string value_type;
+    typedef zip_tree<key_type, value_type> zip_tree_type;
+
+    static const std::uint64_t n_tests = 200000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);

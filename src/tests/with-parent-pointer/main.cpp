@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <map>
 #include <sstream>
+#include <limits>
+#include <vector>
 #include <ctime>
 #include <unistd.h>
 
@@ -19,7 +21,7 @@ std::uint64_t random_int(std::uint64_t p, std::uint64_t r) {
 }
 
 std::string random_string() {
-  uint64_t hash = rand() * RAND_MAX + rand();
+  uint64_t hash = random_int(0, std::numeric_limits<std::uint64_t>::max() - 1);
   std::stringstream ss;
   ss << hash;
   return ss.str();
@@ -28,14 +30,14 @@ std::string random_string() {
 int main() {
   srand(time(0) + getpid());
 
-  typedef std::uint64_t key_type;
-  typedef std::string value_type;
-  typedef zip_tree<key_type, value_type> zip_tree_type;
-
   // Check random sequences of operations
   // and compare the result to std::map.
   {
-    static const std::uint64_t n_tests = 10000000;
+    typedef std::uint64_t key_type;
+    typedef std::string value_type;
+    typedef zip_tree<key_type, value_type> zip_tree_type;
+
+    static const std::uint64_t n_tests = 200000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
@@ -96,6 +98,22 @@ int main() {
           }
         }
 
+        {
+          std::map<key_type, value_type>::iterator it2 = s.begin();
+          for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it) {
+            if (it.key() != it2->first ||
+                it.value() != it2->second) {
+              fprintf(stderr, "\nError: zip tree iterators failed\n");
+              std::exit(EXIT_FAILURE);
+            }
+            ++it2;
+          }
+          if (it2 != s.end()) {
+            fprintf(stderr, "\nError: zip tree iterators failed\n");
+            std::exit(EXIT_FAILURE);
+          }
+        }
+
         tree->check_correctness();
       }
 
@@ -107,7 +125,11 @@ int main() {
   // Same check, but even more paranoid: we simulate
   // all operations manually using std::vector.
   {
-    static const std::uint64_t n_tests = 10000000;
+    typedef std::uint64_t key_type;
+    typedef std::string value_type;
+    typedef zip_tree<key_type, value_type> zip_tree_type;
+
+    static const std::uint64_t n_tests = 200000;
     for (std::uint64_t i = 0; i < n_tests; ++i) {
       if ((i + 1) % 100 == 0)
         fprintf(stderr, "testing: %.2Lf%%\r", 100.L * (i + 1) / n_tests);
@@ -130,6 +152,7 @@ int main() {
           }
           if (found == false) {
             v.push_back(std::make_pair(key, value));
+            std::sort(v.begin(), v.end());
             if (res == false) {
               fprintf(stderr, "\nError: wrong insertion result\n");
               std::exit(EXIT_FAILURE);
@@ -193,6 +216,35 @@ int main() {
           }
         }
 
+        {
+          bool ok = true;
+          std::uint64_t tree_elems = 0;
+          for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it) {
+            if (it.key() != v[tree_elems].first ||
+                it.value() != v[tree_elems].second) {
+              ok = false;
+              break;
+            }
+            ++tree_elems;
+          }
+          if (tree_elems != v.size())
+            ok = false;
+          if (!ok) {
+            std::cerr << "\nError: zip tree iterators failed\n";
+            std::cerr << "v:\n";
+            for (std::uint64_t tt = 0; tt < v.size(); ++tt)
+              std::cerr << "\t" << "key = " << v[tt].first << ", value = "
+                << v[tt].second << "\n";
+            std::cerr << "tree:\n";
+            for (zip_tree_type::iterator it = tree->begin();
+                it != tree->end(); ++it) {
+              std::cerr << "\t" << "key = " << it.key() << ", value = "
+                << it.value() << "\n";
+            }
+            std::exit(EXIT_FAILURE);
+          }
+        }
+
         tree->check_correctness();
       }
 
@@ -200,5 +252,38 @@ int main() {
     }
 
     fprintf(stderr, "\n");
+  }
+
+  {
+    typedef std::uint64_t key_type;
+    typedef std::string value_type;
+    typedef zip_tree<key_type, value_type> zip_tree_type;
+
+    zip_tree_type *tree = new zip_tree_type();
+    tree->insert(5, "five");
+    tree->insert(6, "fix");
+    tree->insert(2, "two");
+    tree->insert(10, "ten");
+    tree->erase(6);
+    tree->insert(7, "seven");
+    tree->erase(5);
+    tree->insert(9, "nine");
+
+    std::cout << "tree:\n";
+    for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it) {
+      std::cout << "\t" << "key = " << it.key() << ", value = "
+        << it.value() << "\n";
+    }
+
+    for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it)
+      it.value() = "newvalue";
+
+    std::cout << "tree:\n";
+    for (zip_tree_type::iterator it = tree->begin(); it != tree->end(); ++it) {
+      std::cout << "\t" << "key = " << it.key() << ", value = "
+        << it.value() << "\n";
+    }
+
+    delete tree;
   }
 }

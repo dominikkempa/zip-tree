@@ -70,6 +70,71 @@ class zip_tree {
   public:
 
     //=========================================================================
+    // Very simple non-const iterator.
+    //=========================================================================
+    class iterator {
+      private:
+        node_type *m_ptr;
+
+      public:
+        iterator(node_type *x)
+          : m_ptr(x) {}
+
+        iterator()
+          : m_ptr(nullptr) {}
+
+        const key_type& key() const {
+          return m_ptr->m_key;
+        }
+
+        value_type& value() {
+          return m_ptr->m_value;
+        }
+
+        inline iterator& operator++() {
+          if (!m_ptr) {
+            std::cerr << "\nError: ++ on NULL iterator\n";
+            std::exit(EXIT_FAILURE);
+          }
+          m_ptr = next(m_ptr);
+          return *this;
+        }
+
+        inline iterator& operator--() {
+          if (!m_ptr)
+            m_ptr = max_node(m_root);
+          else m_ptr = prev(m_ptr);
+          return *this;
+        }
+
+        inline iterator operator++(int) {
+          if (!m_ptr) {
+            std::cerr << "\nError: ++ on NULL iterator\n";
+            std::exit(EXIT_FAILURE);
+          }
+          iterator ret = *this;
+          m_ptr = next(m_ptr);
+          return ret;
+        }
+
+        inline iterator operator--(int) {
+          iterator ret = *this;
+          if (!m_ptr)
+            m_ptr = max_node(m_root);
+          else m_ptr = prev(m_ptr);
+          return ret;
+        }
+
+        bool operator == (const iterator &it) const {
+          return m_ptr == it.m_ptr;
+        }
+
+        bool operator != (const iterator &it) const {
+          return m_ptr != it.m_ptr;
+        }
+    };
+
+    //=========================================================================
     // Constructor.
     //=========================================================================
     zip_tree() {
@@ -174,6 +239,14 @@ class zip_tree {
           std::exit(EXIT_FAILURE);
         }
       }
+    }
+
+    iterator begin() {
+      return iterator(min_node(m_root));
+    }
+
+    iterator end() {
+      return iterator(nullptr);
     }
 
   private:
@@ -401,6 +474,58 @@ class zip_tree {
         }
       }
     }
+
+    //=========================================================================
+    // Compute the next node in inorder. We assume x != nullptr.
+    //=========================================================================
+    static node_type* next(node_type *x) {
+      if (x->m_right)
+        return min_node(x->m_right);
+      else {
+        while (x->m_par && x->m_par->m_right == x)
+          x = x->m_par;
+        if (!(x->m_par))
+          return nullptr;
+        else
+          return x->m_par;
+      }
+    }
+
+    //=========================================================================
+    // Compute the prev node in inorder. We assume x != nullptr.
+    //=========================================================================
+    static node_type* prev(node_type *x) {
+      if (x->m_left)
+        return max_node(x->m_left);
+      else {
+        while (x->m_par && x->m_par->m_left == x)
+          x = x->m_par;
+        if (!(x->m_par))
+          return nullptr;
+        else return x->m_par;
+      }
+    }
+
+    //=========================================================================
+    // Return the leftmost node in the subtree rooted in `x'.
+    //=========================================================================
+    static node_type* min_node(node_type *x) {
+      if (!x) return nullptr;
+      while (x->m_left)
+        x = x->m_left;
+      return x;
+    }
+
+    //=========================================================================
+    // Return the rightmost node in the subtree rooted in `x'.
+    //=========================================================================
+    static node_type* max_node(node_type *x) {
+      if (!x) return nullptr;
+      while (x->m_right)
+        x = x->m_right;
+      return x;
+    }
+
 };
 
 #endif  // __ZIP_TREE_HPP_INCLUDED
