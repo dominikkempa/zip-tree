@@ -6,15 +6,16 @@ and then
 
   $ ./test
 
-The resuls are very promising. On my computer
-the insertion into zip-trees (in random order)
-is only about 50% slower than for red-back
+The results for this preliminary implementation
+of zip-trees are already very interesting. On my
+computer the insertion into zip-trees (in random
+order) is only about 50% slower than for red-back
 trees. Interestingly, insertion in sorted order
 is usually slightly faster for zip-trees.
 
 As for searching and deleting, on my machine
-zip-trees are only about 25% slower than red
-black trees.
+zip-trees are only about 15-25% slower than
+red black trees.
 
 Perhaps further engineering of zip-trees can
 yield some improvements, e.g., eliminating

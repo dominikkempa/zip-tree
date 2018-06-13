@@ -49,7 +49,7 @@ int main() {
     typedef std::string value_type;
 
     // Allocate test data.
-    static const std::uint64_t n_items = 1000000;
+    static const std::uint64_t n_items = 4000000;
     typedef std::pair<key_type, value_type> pair_type;
     pair_type *data = new pair_type[n_items];
     for (std::uint64_t i = 0; i < n_items; ++i) {
