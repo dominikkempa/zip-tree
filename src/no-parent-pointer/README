@@ -1,0 +1,10 @@
+To test the tree type
+
+  $ make
+
+and then
+
+  $ ./test
+
+It checks the correctness of the code. Tests until valgrind (with the
+--leak-check=full flag) report no leaks.

@@ -1,3 +1,35 @@
+/**
+ * @file    zip_tree.hpp
+ * @section LICENCE
+ *
+ * Implementation of the Zip Tree with parent pointer, v0.1.0
+ * See: https://github.com/dominikkempa/zip-tree
+ *
+ * Copyright (C) 2018-2020
+ *   Dominik Kempa <dominik.kempa (at) gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ **/
+
 #ifndef __ZIP_TREE_HPP_INCLUDED
 #define __ZIP_TREE_HPP_INCLUDED
 
@@ -7,7 +39,7 @@
 
 
 //=============================================================================
-// Node of a zip-tree.
+// Node of a Zip Tree.
 //=============================================================================
 template<typename key_type, typename value_type>
 class node {
@@ -21,13 +53,14 @@ class node {
   public:
 
     //=========================================================================
-    // Key, value, rank, and pointers to children.
+    // Key, value, rank, and pointers.
     //=========================================================================
     key_type m_key;
     value_type m_value;
     std::uint8_t m_rank;
     node_type *m_left;
     node_type *m_right;
+    node_type *m_par;
 
     //=========================================================================
     // Constructor.
@@ -37,17 +70,19 @@ class node {
         const value_type &value,
         const std::uint8_t rank,
         node_type *left,
-        node_type *right) {
+        node_type *right,
+        node_type *par) {
       m_key = key;
       m_value = value;
       m_rank = rank;
       m_left = left;
       m_right = right;
+      m_par = par;
     }
 };
 
 //=============================================================================
-// Simple implementation of zip-tree. It works with any key_type as
+// Simple implementation of Zip Tree. It works with any key_type as
 // long as objects of key_type can be compared using "<" operator.
 //=============================================================================
 template<typename key_type, typename value_type>
@@ -88,23 +123,29 @@ class zip_tree {
     //=========================================================================
     bool insert(const key_type &key, const value_type &value) {
       std::uint8_t rank = random_rank();
-      node_type *cur = m_root, **edgeptr = 0;
+      node_type *cur = m_root, *par = 0, **edgeptr = 0;
       while (cur && cur->m_rank > rank) {
         if (key < cur->m_key) {
+          par = cur;
           edgeptr = &(cur->m_left);
           cur = cur->m_left;
         } else if (cur->m_key < key) {
+          par = cur;
           edgeptr = &(cur->m_right);
           cur = cur->m_right;
         } else return false;
       }
       while (cur && cur->m_rank == rank && cur->m_key < key) {
+        par = cur;
         edgeptr = &(cur->m_right);
         cur = cur->m_right;
       }
       std::pair<node_type*, node_type*> p = unzip(cur, key);
       if (cur && !p.first && !p.second) return false;
-      node_type *newnode = new node_type(key, value, rank, p.first, p.second);
+      node_type *newnode =
+        new node_type(key, value, rank, p.first, p.second, par);
+      if (p.first) p.first->m_par = newnode;
+      if (p.second) p.second->m_par = newnode;
       if (!edgeptr) m_root = newnode;
       else *edgeptr = newnode;
       return true;
@@ -118,8 +159,16 @@ class zip_tree {
       std::pair<node_type*, node_type**> p = find(key);
       if (!p.first) return false;
       else {
-        if (!p.second) m_root = zip(p.first->m_left, p.first->m_right);
-        else *(p.second) = zip(p.first->m_left, p.first->m_right);
+        if (!p.second) {
+          m_root = zip(p.first->m_left, p.first->m_right);
+          if (m_root)
+            m_root->m_par = 0;
+        } else {
+          node_type *par = p.first->m_par;
+          *(p.second) = zip(p.first->m_left, p.first->m_right);
+          if (*(p.second))
+            (*(p.second))->m_par = par;
+        }
         delete p.first;
         return true;
       }
@@ -151,7 +200,87 @@ class zip_tree {
       if (m_root) {
         check_keys(m_root);
         check_ranks(m_root);
+        check_parents(m_root);
+        if (m_root->m_par != 0) {
+          std::cerr << "\nError: m_root->m_par != 0\n";
+          std::exit(EXIT_FAILURE);
+        }
       }
+    }
+
+  public:
+
+    //=========================================================================
+    // Very simple non-const iterator.
+    //=========================================================================
+    class iterator {
+      private:
+        node_type *m_ptr;
+
+      public:
+        iterator(node_type *x)
+          : m_ptr(x) {}
+
+        iterator()
+          : m_ptr(nullptr) {}
+
+        const key_type& key() const {
+          return m_ptr->m_key;
+        }
+
+        value_type& value() {
+          return m_ptr->m_value;
+        }
+
+        inline iterator& operator++() {
+          if (!m_ptr) {
+            std::cerr << "\nError: ++ on NULL iterator\n";
+            std::exit(EXIT_FAILURE);
+          }
+          m_ptr = next(m_ptr);
+          return *this;
+        }
+
+        inline iterator& operator--() {
+          if (!m_ptr)
+            m_ptr = max_node(m_root);
+          else m_ptr = prev(m_ptr);
+          return *this;
+        }
+
+        inline iterator operator++(int) {
+          if (!m_ptr) {
+            std::cerr << "\nError: ++ on NULL iterator\n";
+            std::exit(EXIT_FAILURE);
+          }
+          iterator ret = *this;
+          m_ptr = next(m_ptr);
+          return ret;
+        }
+
+        inline iterator operator--(int) {
+          iterator ret = *this;
+          if (!m_ptr)
+            m_ptr = max_node(m_root);
+          else m_ptr = prev(m_ptr);
+          return ret;
+        }
+
+        bool operator == (const iterator &it) const {
+          return m_ptr == it.m_ptr;
+        }
+
+        bool operator != (const iterator &it) const {
+          return m_ptr != it.m_ptr;
+        }
+    };
+
+    iterator begin() {
+      return iterator(min_node(m_root));
+    }
+
+    iterator end() {
+      return iterator(nullptr);
     }
 
   private:
@@ -165,20 +294,28 @@ class zip_tree {
       if (!y) return x;
       if (x->m_rank >= y->m_rank) {
         node_type *xright = x->m_right;
-        if (xright && xright->m_rank >= y->m_rank)
+        if (xright && xright->m_rank >= y->m_rank) {
           x->m_right = zip(xright, y);
-        else {
+          x->m_right->m_par = x;
+        } else {
           x->m_right = y;
+          y->m_par = x;
           y->m_left = zip(xright, y->m_left);
+          if (y->m_left)
+            y->m_left->m_par = y;
         }
         return x;
       } else {
         node_type *yleft = y->m_left;
-        if (yleft && yleft->m_rank >= x->m_rank)
+        if (yleft && yleft->m_rank >= x->m_rank) {
           y->m_left = zip(x, yleft);
-        else {
+          y->m_left->m_par = y;
+        } else {
           y->m_left = x;
+          x->m_par = y;
           x->m_right = zip(x->m_right, yleft);
+          if (x->m_right)
+            x->m_right->m_par = x;
         }
         return y;
       }
@@ -200,7 +337,11 @@ class zip_tree {
           std::pair<node_type*, node_type*> p = unzip(xleft->m_right, key);
           if (xleft->m_right && !p.first && !p.second) return p;
           xleft->m_right = p.first;
+          if (p.first)
+            p.first->m_par = xleft;
           x->m_left = p.second;
+          if (p.second)
+            p.second->m_par = x;
           return std::make_pair(xleft, x);
         } else {
           std::pair<node_type*, node_type*> p = unzip(xleft, key);
@@ -213,7 +354,11 @@ class zip_tree {
           std::pair<node_type*, node_type*> p = unzip(xright->m_left, key);
           if (xright->m_left && !p.first && !p.second) return p;
           xright->m_left = p.second;
+          if (p.second)
+            p.second->m_par = xright;
           x->m_right = p.first;
+          if (p.first)
+            p.first->m_par = x;
           return std::make_pair(x, xright);
         } else {
           std::pair<node_type*, node_type*> p = unzip(xright, key);
@@ -244,9 +389,16 @@ class zip_tree {
     //=========================================================================
     // Return random rank.
     //=========================================================================
-    inline std::uint8_t random_rank() const {
-      std::uint64_t rank = 0;
-      while (rand() % 2) ++rank;
+    std::uint8_t random_rank() const {
+
+      // Note the static below. This variable
+      // will keep its value between calls, which
+      // reduces the number of calls to rand().
+      static std::uint32_t random_bits = 0;
+      while (!random_bits)
+        random_bits = rand();
+      std::uint8_t rank = __builtin_ctz(random_bits);
+      random_bits >>= (rank + 1);
       return rank;
     }
 
@@ -343,6 +495,78 @@ class zip_tree {
         }
       }
     }
+
+    //=========================================================================
+    // Check correctness of parent pointer in the subtree rooted in `x'.
+    //=========================================================================
+    void check_parents(const node_type *x) const {
+      if (x->m_left) {
+        check_parents(x->m_left);
+        if (x->m_left->m_par != x) {
+          std::cerr << "\nError: check_parents failed!\n";
+          std::exit(EXIT_FAILURE);
+        }
+      }
+      if (x->m_right) {
+        check_parents(x->m_right);
+        if (x->m_right->m_par != x) {
+          std::cerr << "\nError: check_parents failed!\n";
+          std::exit(EXIT_FAILURE);
+        }
+      }
+    }
+
+    //=========================================================================
+    // Compute the next node in inorder. We assume x != nullptr.
+    //=========================================================================
+    static node_type* next(node_type *x) {
+      if (x->m_right)
+        return min_node(x->m_right);
+      else {
+        while (x->m_par && x->m_par->m_right == x)
+          x = x->m_par;
+        if (!(x->m_par))
+          return nullptr;
+        else
+          return x->m_par;
+      }
+    }
+
+    //=========================================================================
+    // Compute the prev node in inorder. We assume x != nullptr.
+    //=========================================================================
+    static node_type* prev(node_type *x) {
+      if (x->m_left)
+        return max_node(x->m_left);
+      else {
+        while (x->m_par && x->m_par->m_left == x)
+          x = x->m_par;
+        if (!(x->m_par))
+          return nullptr;
+        else return x->m_par;
+      }
+    }
+
+    //=========================================================================
+    // Return the leftmost node in the subtree rooted in `x'.
+    //=========================================================================
+    static node_type* min_node(node_type *x) {
+      if (!x) return nullptr;
+      while (x->m_left)
+        x = x->m_left;
+      return x;
+    }
+
+    //=========================================================================
+    // Return the rightmost node in the subtree rooted in `x'.
+    //=========================================================================
+    static node_type* max_node(node_type *x) {
+      if (!x) return nullptr;
+      while (x->m_right)
+        x = x->m_right;
+      return x;
+    }
+
 };
 
 #endif  // __ZIP_TREE_HPP_INCLUDED
