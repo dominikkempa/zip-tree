@@ -6,5 +6,5 @@ and then
 
   $ ./test
 
-It checks the correctness of the code. Tests until valgrind (with the
+It checks the correctness of the code. Tests under valgrind (with the
 --leak-check=full flag) report no leaks.
